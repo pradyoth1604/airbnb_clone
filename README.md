@@ -1,5 +1,6 @@
 # airbnb_clone
 
+This is my component which i am using 
 
 import React from 'react';
 import ReviewerAssessmentTemplate from '../../templates/ReviewerAssessmentTemplate/ReviewerAssessmentTemplate';
@@ -37,6 +38,8 @@ const ReviewerAssessmentPage: React.FC = () => {
 
 export default ReviewerAssessmentPage;
 
+
+
 import { ArrowLeftIcon } from 'hds-ui/icons';
 import { Spin } from 'hds-ui/components';
 import ProfileCardWholeTemplate from '../templates/ProfileCardWholeTemplate/ProfileCardWholeTemplate';
@@ -68,7 +71,7 @@ if (!feedbackData) {
         </span>
       </div>
       <ProfileCard data={feedbackData} flagToHideManagerAssessmentData={true} />
-      {/* <ProfileCardWholeTemplate data={data} /> */}
+      {/* <ProfileCardWholeTemplate data={data} /> */} Thiss i commented out becuase i want to make this generic component see on top ProfileCard and this one is same so please make this ProfileCardWholeTemplate generic so that er can avoid using ProfileCard dont modify existing code beacuse inside the code only keys are changing do anything to make this generic and simple and understabable dont chamge any variables 
       {/* <RtFinalFeedBackContainer /> */}
     </>
   );
@@ -76,6 +79,9 @@ if (!feedbackData) {
 
 export default ReviewerFeedback;
 
+
+Below are the 
+ same alike component that I asked for Generic 
 import './ProfileCardWholeTemplate.scss';
 import ProfileCardWithDropdown from '../../modules/ProfileCardWithDropdown/ProfileCardWithDropdown';
 import ProfilePreviousRTCard from '../../molecules/ProfilePreviousRTCard/ProfilePreviousRTCard';
@@ -290,6 +296,8 @@ const ProfileCardWholeTemplate: React.FC<ProfileCardWholeTemplateProps> = ({
 export default ProfileCardWholeTemplate;
 
 
+Again same like above i want to make this things generic i dont want ProfileCardAssess instead I want ProfileCardWithDropdown To be generic so that it can be used by many other components change props according or do what au like
+
 import UserCard from 'hds-ui/components/UserCard';
 import './ProfileCardWithDropdown.scss';
 import ProfileDropdownReportees from '../../molecules/ProfileDropdownReportees/ProfileDropdownReportees';
@@ -474,6 +482,8 @@ const ProfileCardWithDropdown: React.FC<ProfileCardWithDropdown> = ({
 
 export default ProfileCardWithDropdown;
 
+Again same like above i want to make this things generic i dont want ProfileDropDownRI instead I want ProfileDropdownReportees To be generic so that it can be used by many other components change props according or do what au like
+
 
 import { MenuProps, UserCard } from 'hds-ui/components';
 import { TEAM_LIST } from '../../utils/queries';
@@ -595,6 +605,112 @@ const ProfileDropDownRI = () => {
 export default ProfileDropDownRI;
 
 
+_________________________________________________________________________________________________________________________________________________________________
+
+
+import './ProfileCardWholeTemplate.scss';
+import ProfileCardWithDropdown from '../../modules/ProfileCardWithDropdown/ProfileCardWithDropdown';
+import ProfilePreviousRTCard from '../../molecules/ProfilePreviousRTCard/ProfilePreviousRTCard';
+import ProfileOfManagerAndCoach from '../../molecules/ProfileOfManagerAndCoach/ProfileOfManagerAndCoach';
+import ProfilePreviousExperience from '../../molecules/ProfilePreviousExperience/ProfilePreviousExperience';
+import ProfileTimelineButton from '../../atoms/ProfileTimelineButton';
+import ProfileUtilisationScore from '../../molecules/ProfileUtilisationScore/ProfileUtilisationScore';
+import RTQuestionsDrawer from '../RTQuestionsDrawer/RTQuestionsDrawer';
+import { useState } from 'react';
+import { getProperty } from '../../utils';
+
+interface ProfileCardWholeTemplateProps {
+  data: any;
+  flagToHideManagerAssessmentData?: boolean;  // Added the flag here
+}
+
+const ProfileCardWholeTemplate: React.FC<ProfileCardWholeTemplateProps> = ({
+  data,
+  flagToHideManagerAssessmentData = false // Default it to false for backward compatibility
+}) => {
+  // Normalize the data structure to handle both `data` and `reviews`
+  const normalizedData = data?.reviews?.[0] || data;  // Handles both cases
+  const { selfAssessment: apiSelfAssessment } = normalizedData || {};
+  const selfAssessment = apiSelfAssessment?.[0] || apiSelfAssessment || {};
+  const { hierarchy, timeSpentOnCurrentBand } = selfAssessment || {};
+  const owner = hierarchy?.owner || {};
+  const profile = owner?.profile || {};
+  const selfAssessmentId = selfAssessment?.id || normalizedData?.id || null;
+
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+
+  const handleRTClick = () => {
+    setIsDrawerVisible(true);
+  };
+
+  return (
+    <>
+      <div className="profile-card-main" data-testid="profile-template">
+        <ProfileCardWithDropdown
+          profile={profile}
+          id={selfAssessment?.id}
+          email={owner?.email}
+          contributors={{
+            reviewers: getProperty(selfAssessment, ['allReviewers'], []),
+            reviewers360: getProperty(selfAssessment, ['reviewers360'], []),
+          }}
+          manager={getProperty(hierarchy, ['manager'], {})}
+        />
+        <ProfilePreviousRTCard
+          previousAssessment={selfAssessment?.previousAssessment}
+        />
+        <div className="prev-exp-utilisation">
+          <ProfilePreviousExperience
+            profile={profile}
+            hierarchy={hierarchy}
+            timeSpentOnCurrentBand={timeSpentOnCurrentBand}
+          />
+          {!flagToHideManagerAssessmentData && (
+            <ProfileUtilisationScore
+              userEmail={hierarchy?.owner?.email}
+              cycleId={hierarchy?.cycle?.id}
+            />
+          )}
+        </div>
+        <ProfileOfManagerAndCoach
+          manager={hierarchy?.manager}
+          coach={hierarchy?.coach}
+          flagToHideManagerAssessmentData={flagToHideManagerAssessmentData} // Pass flag here
+        />
+        <div className="profile-btn-margin">
+          <ProfileTimelineButton
+            className={'career-timeline-btn'}
+            title={'Career Timeline'}
+            selfAssessmentId={selfAssessmentId}
+          />
+          <br />
+          <ProfileTimelineButton
+            className={'expectations-margin'}
+            title={'RT Questions'}
+            handleRTClick={handleRTClick}
+          />
+          <br />
+          {!flagToHideManagerAssessmentData && (
+            <ProfileTimelineButton
+              id={owner?.id}
+              className={'expectations-margin'}
+              title={'Manager 1 on 1 Summary'}
+            />
+          )}
+        </div>
+      </div>
+      {setIsDrawerVisible && (
+        <RTQuestionsDrawer
+          setIsDrawerVisible={setIsDrawerVisible}
+          isDrawerVisible={isDrawerVisible}
+          assessmentId={selfAssessmentId}
+        />
+      )}
+    </>
+  );
+};
+
+export default ProfileCardWholeTemplate;
 
 
 
