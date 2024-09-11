@@ -1150,6 +1150,204 @@ team query data
 links to redirect 
 disabled 
 these 3 can be passed from props 
+___________________________________________________________________________
+
+Generic Comoponent
+
+
+import UserCard from 'hds-ui/components/UserCard';
+import './ProfileCardWithDropdown.scss';
+import ProfileDropdownReportees from '../../molecules/ProfileDropdownReportees/ProfileDropdownReportees';
+import ProfileReviewersAnd360 from '../../molecules/ProfileReviewersAnd360';
+import DetailedProfile from '../../molecules/DetailedProfile/DetailedProfile';
+import { dashboardClient, useQueryHook } from '../../utils/client';
+import {
+  GET_ACE_CERTIFICATIONS,
+  GET_SKILLS,
+  INTERVIEWS_COUNT,
+  TEAM_LIST,
+  TENANT_REVIEW_LIST,
+} from '../../utils/queries';
+import { Popover } from 'hds-ui/components';
+import { getProperty } from 'hds-ui/utils';
+
+interface ProfileCardWithDropdownProps {
+  flagToHideManagerAssessmentData: boolean;
+  profile: any;
+  id: any;
+  email: string;
+  contributors: {
+    reviewers: Array<any>;
+    reviewers360: Array<any>;
+  };
+  manager: any;
+}
+
+const ProfileCardWithDropdown: React.FC<ProfileCardWithDropdownProps> = ({
+  flagToHideManagerAssessmentData,
+  profile,
+  id,
+  email,
+  contributors,
+  manager,
+}) => {
+  const { name, designation, profilePic } = profile || '';
+  const { track, band } = profile || {};
+
+  const { data: aceCertificationsData } = useQueryHook(GET_ACE_CERTIFICATIONS, {
+    variables: { email, selfAssessmentId: id },
+  });
+  const { data: skillsData } = useQueryHook(GET_SKILLS, {
+    variables: { conditions: { email } },
+    client: dashboardClient,
+  });
+  const { data: hireData } = useQueryHook(INTERVIEWS_COUNT, {
+    variables: { email, selfAssessmentId: id },
+  });
+
+  const interviewsCount = hireData?.hireInterviewsCount?.[0]?.interviewCount;
+  const usersCertifiedCertificationList =
+    aceCertificationsData?.aceCertifications?.result?.filter((obj: any) => obj?.userCertificate);
+  const userSkills = skillsData?.getUser?.detailedProfile?.userSkills;
+
+  const queryType = flagToHideManagerAssessmentData ? TENANT_REVIEW_LIST : TEAM_LIST;
+
+  const { data: dropdownData } = useQueryHook(queryType);
+
+  const dropdownItems = dropdownData?.result || [];
+
+  const getURL = (id: string | null) => {
+    return flagToHideManagerAssessmentData
+      ? `${APP_URL}/reviewer-assessment/${id}`
+      : `${APP_URL}/manager-feedback-form/${id}`;
+  };
+
+  const isDisabled = (data: any) =>
+    !data?.selfAssessment?.id || data?.selfAssessment?.rtDecision?.status !== 'FINAL';
+
+  // Handle dynamic properties based on queryType
+  const mapDropdownItems = dropdownItems.map((dataItem: any) => ({
+    profilePic: flagToHideManagerAssessmentData
+      ? getProperty(dataItem, ['selfAssessment', 'hierarchy', 'owner', 'profile', 'profilePic'])
+      : getProperty(dataItem, ['owner', 'profile', 'profilePic']),
+    band: flagToHideManagerAssessmentData
+      ? getProperty(dataItem, ['selfAssessment', 'band', 'name'])
+      : getProperty(dataItem, ['owner', 'profile', 'band', 'name']),
+    title: flagToHideManagerAssessmentData
+      ? getProperty(dataItem, ['selfAssessment', 'hierarchy', 'owner', 'profile', 'name'])
+      : getProperty(dataItem, ['owner', 'profile', 'name']),
+    subTitle: flagToHideManagerAssessmentData
+      ? getProperty(dataItem, ['selfAssessment', 'hierarchy', 'owner', 'profile', 'designation'])
+      : getProperty(dataItem, ['owner', 'profile', 'designation']),
+    selfAssessmentId: dataItem?.selfAssessment?.id,
+  }));
+
+  return (
+    <div className="profile-user-container" data-testid="detailed-profile">
+      <div className="main-profile-user-card">
+        <Popover
+          placement="rightTop"
+          content={
+            <DetailedProfile
+              name={name}
+              track={track?.name}
+              designation={designation}
+              usersCertifiedCertificationList={usersCertifiedCertificationList}
+              userSkills={userSkills}
+              interviewsCount={interviewsCount}
+            />
+          }>
+          <div>
+            <UserCard
+              profilePic={profilePic}
+              description={`Track - ${track?.name}`}
+              band={band?.name}
+              title={name}
+              subTitle={designation}
+              loading={false}
+              imgSize="lg"
+              imgHoverZoom={false}
+            />
+          </div>
+        </Popover>
+        <ProfileDropdownReportees
+          data={mapDropdownItems}
+          getURL={getURL}
+          isDisabled={isDisabled}
+        />
+      </div>
+      {!flagToHideManagerAssessmentData && (
+        <ProfileReviewersAnd360 info={contributors} manager={manager} />
+      )}
+    </div>
+  );
+};
+
+export default ProfileCardWithDropdown;
+
+
+import { MenuProps, UserCard } from 'hds-ui/components';
+import './ProfileDropdownReportees.scss';
+import ProfileDropdownReporteesAtom from '../../atoms/ProfileDropdownReporteesAtom';
+import exclamation from '../../assets/exclamation.svg';
+import check from '../../assets/check.svg';
+import { Link } from 'react-router-dom';
+
+interface ProfileDropdownReporteesProps {
+  data: Array<{
+    profilePic: string;
+    band: string;
+    title: string;
+    subTitle: string;
+    selfAssessmentId: string | null;
+  }>;
+  getURL: (id: string | null) => string;
+  isDisabled: (data: any) => boolean;
+}
+
+const ProfileDropdownReportees: React.FC<ProfileDropdownReporteesProps> = ({
+  data,
+  getURL,
+  isDisabled,
+}) => {
+  const currentURL = window.location.href;
+
+  const dropdownItems = data?.map((dataItem: any, index: number) => ({
+    key: (index + 1).toString(),
+    label: (
+      <Link to={getURL(dataItem?.selfAssessmentId)}>
+        <div style={{ display: 'flex' }}>
+          {dataItem?.selfAssessmentId ? (
+            <img src={check} className="dropdown-status" />
+          ) : (
+            <img src={exclamation} className="dropdown-status" />
+          )}
+          <UserCard
+            profilePic={dataItem?.profilePic}
+            band={dataItem?.band}
+            title={dataItem?.title}
+            subTitle={dataItem?.subTitle}
+            loading={false}
+            imgSize="md"
+            imgHoverZoom={false}
+          />
+        </div>
+      </Link>
+    ),
+    disabled: isDisabled(dataItem),
+  }));
+
+  const style = {
+    width: '260px',
+  };
+
+  const items: MenuProps['items'] = dropdownItems;
+
+  return <ProfileDropdownReporteesAtom items={items} style={style} />;
+};
+
+export default ProfileDropdownReportees;
+
 
 
 
