@@ -837,6 +837,113 @@ const ProfileDropdownReportees = () => {
 };
 export default ProfileDropdownReportees;
 
+____________________________________________________________
+Generic 
+
+import { MenuProps, UserCard } from 'hds-ui/components';
+import { useQueryHook } from '../../utils/client';
+import exclamation from '../../assets/exclamation.svg';
+import check from '../../assets/check.svg';
+import { Link } from 'react-router-dom';
+import './ProfileDropdownReportees.scss';
+import ProfileDropdownReporteesAtom from '../../atoms/ProfileDropdownReporteesAtom';
+import { APP_URL } from '../../utils/constants';
+
+// Helper function to generate dynamic URLs
+const getURL = (currentURL: string, id: string | null, dataType: string) => {
+  switch (dataType) {
+    case 'TENANT_REVIEW_LIST':
+      return currentURL.includes('final')
+        ? `${APP_URL}/reviewer-assessment/${id}`
+        : `${APP_URL}/reviewer-assessment/${id}`;
+    case 'TEAM_LIST':
+      return currentURL.includes('final')
+        ? `${APP_URL}/manager-final-feedback/${id}`
+        : `${APP_URL}/manager-feedback-form/${id}`;
+    default:
+      return '#';
+  }
+};
+
+interface ProfileDropdownReporteesProps {
+  queryType: 'TEAM_LIST' | 'TENANT_REVIEW_LIST'; // Define the types of queries
+}
+
+const ProfileDropdownReportees: React.FC<ProfileDropdownReporteesProps> = ({
+  queryType,
+}) => {
+  const { data, error } = useQueryHook(queryType === 'TEAM_LIST' ? TEAM_LIST : TENANT_REVIEW_LIST);
+
+  if (error) {
+    return <></>;
+  }
+
+  const currentURL = window.location.href;
+
+  // Dynamically choose data structure based on queryType
+  const TeamData =
+    queryType === 'TEAM_LIST'
+      ? data?.myTeamAssessment?.result
+      : data?.tenantReviewsList?.result?.[3]?.reviews;
+
+  const json = TeamData?.map((data: any, index: number) => ({
+    key: (index + 1).toString(),
+    label: (
+      <Link to={getURL(currentURL, data?.selfAssessment?.id, queryType)}>
+        <div style={{ display: 'flex' }}>
+          {data?.selfAssessment?.managerAssessment?.status === 'FINAL' ? (
+            <img src={check} className="dropdown-status" />
+          ) : (
+            <img src={exclamation} className="dropdown-status" />
+          )}
+          <UserCard
+            profilePic={
+              queryType === 'TEAM_LIST'
+                ? data?.owner?.profile?.profilePic
+                : data?.selfAssessment?.hierarchy?.owner?.profile?.profilePic
+            }
+            band={
+              queryType === 'TEAM_LIST'
+                ? data?.owner?.profile?.band?.name
+                : data?.selfAssessment?.band?.name
+            }
+            title={
+              queryType === 'TEAM_LIST'
+                ? data?.owner?.profile?.name
+                : data?.selfAssessment?.hierarchy?.owner?.profile?.name
+            }
+            subTitle={
+              queryType === 'TEAM_LIST'
+                ? data?.owner?.profile?.designation
+                : data?.selfAssessment?.hierarchy?.owner?.profile?.designation
+            }
+            loading={false}
+            imgSize="md"
+            imgHoverZoom={false}
+          />
+        </div>
+      </Link>
+    ),
+    disabled:
+      !data?.selfAssessment?.id ||
+      (currentURL.includes('final') && data?.selfAssessment?.rtDecision?.status !== 'FINAL'),
+  }));
+
+  const style = {
+    width: '260px',
+  };
+
+  const items: MenuProps['items'] = json;
+  return <ProfileDropdownReporteesAtom items={items} style={style} />;
+};
+
+export default ProfileDropdownReportees;
+
+<ProfileDropdownReportees queryType="TEAM_LIST" />
+<ProfileDropdownReportees queryType="TENANT_REVIEW_LIST" />
+
+
+
 
 
 
