@@ -711,6 +711,132 @@ const ProfileCardWholeTemplate: React.FC<ProfileCardWholeTemplateProps> = ({
 };
 
 export default ProfileCardWholeTemplate;
+___________________________________________________
+
+next component Generic
+
+
+import { MenuProps, UserCard } from 'hds-ui/components';
+import { TEAM_LIST, TENANT_REVIEW_LIST } from '../../utils/queries';
+import { useQueryHook } from '../../utils/client';
+import exclamation from '../../assets/exclamation.svg';
+import check from '../../assets/check.svg';
+import { Link } from 'react-router-dom';
+import './ProfileDropdownReportees.scss';
+import ProfileDropdownReporteesAtom from '../../atoms/ProfileDropdownReporteesAtom';
+import { APP_URL } from '../../utils/constants';
+
+const ProfileDropDownRI = () => {
+  const { data, error } = useQueryHook(TENANT_REVIEW_LIST);
+  if (error) {
+    return <></>;
+  }
+  console.log("ProfileDropDownRI",data)
+  const currentURL = window.location.href;
+  const TeamData = data?.tenantReviewsList?.result[3].reviews;
+  console.log("TeamData>>>>>>>>>",TeamData);
+  const json = TeamData?.map((data: any, index: number) => ({
+    key: (index + 1).toString(),
+    label: (
+      <Link
+        to={
+          currentURL?.includes('final')
+            ? `${APP_URL}/reviewer-assessment/${data?.id}`
+            : `${APP_URL}/reviewer-assessment/${data?.id}`
+        }>
+        <div style={{ display: 'flex' }}>
+          {data?.selfAssessment?.managerAssessment?.status === 'FINAL' ? (
+            <img src={check} className="dropdown-status" />
+          ) : (
+            <img src={exclamation} className="dropdown-status" />
+          )}
+           <UserCard
+            profilePic={data?.selfAssessment?.hierarchy?.owner?.profile?.profilePic}
+            band={data?.selfAssessment?.band?.name}
+            title={data?.selfAssessment?.hierarchy?.owner?.profile?.name}
+            subTitle={data?.selfAssessment?.hierarchy?.owner?.profile?.designation}
+            loading={false}
+            imgSize="md"
+            imgHoverZoom={false}
+          />
+        </div>
+      </Link>
+    ),
+    disabled:
+      !data?.selfAssessment?.id ||
+      (currentURL?.includes('final') &&
+        data?.selfAssessment?.rtDecision?.status != 'FINAL'),
+  }));
+  console.log("Json",json);
+  const style = {
+    width: '260px',
+  };
+  const items: MenuProps['items'] = json;
+  return <ProfileDropdownReporteesAtom items={items} style={style} />;
+};
+export default ProfileDropDownRI;
+
+
+
+import { MenuProps, UserCard } from 'hds-ui/components';
+import { TEAM_LIST } from '../../utils/queries';
+import { useQueryHook } from '../../utils/client';
+import exclamation from '../../assets/exclamation.svg';
+import check from '../../assets/check.svg';
+import { Link } from 'react-router-dom';
+import './ProfileDropdownReportees.scss';
+import ProfileDropdownReporteesAtom from '../../atoms/ProfileDropdownReporteesAtom';
+import { APP_URL } from '../../utils/constants';
+
+const ProfileDropdownReportees = () => {
+  const { data, error } = useQueryHook(TEAM_LIST);
+  if (error) {
+    return <></>;
+  }
+  console.log("ProfileDropdownReportees",data)
+  const currentURL = window.location.href;
+  const TeamData = data?.myTeamAssessment?.result;
+  const json = TeamData?.map((data: any, index: number) => ({
+    key: (index + 1).toString(),
+    label: (
+      <Link
+        to={
+          currentURL?.includes('final')
+            ? `${APP_URL}/manager-final-feedback/${data?.selfAssessment?.id}`
+            : `${APP_URL}/manager-feedback-form/${data?.selfAssessment?.id}`
+        }>
+        <div style={{ display: 'flex' }}>
+          {data?.selfAssessment?.managerAssessment?.status === 'FINAL' ? (
+            <img src={check} className="dropdown-status" />
+          ) : (
+            <img src={exclamation} className="dropdown-status" />
+          )}
+          <UserCard
+            profilePic={data?.owner?.profile?.profilePic}
+            band={data?.owner?.profile?.band?.name}
+            title={data?.owner?.profile?.name}
+            subTitle={data?.owner?.profile?.designation}
+            loading={false}
+            imgSize="md"
+            imgHoverZoom={false}
+          />
+        </div>
+      </Link>
+    ),
+    disabled:
+      !data?.selfAssessment?.id ||
+      (currentURL?.includes('final') &&
+        data?.selfAssessment?.rtDecision?.status != 'FINAL'),
+  }));
+  console.log("Json",json);
+  const style = {
+    width: '260px',
+  };
+  const items: MenuProps['items'] = json;
+  return <ProfileDropdownReporteesAtom items={items} style={style} />;
+};
+export default ProfileDropdownReportees;
+
 
 
 
