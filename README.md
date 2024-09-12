@@ -1166,6 +1166,329 @@ export default ProfileDropdownReportees;
 
 ___________________________________________________________________________
 
+Now I want to make profileCardWholeTemplate generic and fetch queries using lazyhook and use effect in this instead of calling in ProfileDropDown and transform data in ProfileWholeTemplate because when you pass keys it should not be differ 
+
+import './ProfileCardWholeTemplate.scss';
+import ProfileCardWithDropdown from '../../modules/ProfileCardWithDropdown/ProfileCardWithDropdown';
+import ProfilePreviousRTCard from '../../molecules/ProfilePreviousRTCard/ProfilePreviousRTCard';
+import ProfileOfManagerAndCoach from '../../molecules/ProfileOfManagerAndCoach/ProfileOfManagerAndCoach';
+import ProfilePreviousExperience from '../../molecules/ProfilePreviousExperience/ProfilePreviousExperience';
+import ProfileTimelineButton from '../../atoms/ProfileTimelineButton';
+import ProfileUtilisationScore from '../../molecules/ProfileUtilisationScore/ProfileUtilisationScore';
+import RTQuestionsDrawer from '../RTQuestionsDrawer/RTQuestionsDrawer';
+import { useState } from 'react';
+import { getProperty } from '../../utils';
+
+interface ProfileCardWholeTemplateProps {
+  data: any;
+  flagToHideManagerAssessmentData: boolean;  // Added the flag here
+}
+
+const ProfileCardWholeTemplate: React.FC<ProfileCardWholeTemplateProps> = ({
+  data,
+  flagToHideManagerAssessmentData
+}) => {
+  // Normalize the data structure to handle both `data` and `reviews from manager component and reviewer assesment component`
+  const normalizedData = data?.reviews?.[0] || data;  // Handles both cases
+  const { selfAssessment: apiSelfAssessment } = normalizedData || {};
+  const selfAssessment = apiSelfAssessment?.[0] || apiSelfAssessment || {};
+  const { hierarchy, timeSpentOnCurrentBand } = selfAssessment || {};
+  const owner = hierarchy?.owner || {};
+  const profile = owner?.profile || {};
+  const selfAssessmentId = selfAssessment?.id || normalizedData?.id;
+
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+
+
+  const handleRTClick = () => {
+    setIsDrawerVisible(true);
+  };
+
+  return (
+    <>
+      <div className="profile-card-main" data-testid="profile-template">
+        <ProfileCardWithDropdown
+          flagToHideManagerAssessmentData = {flagToHideManagerAssessmentData}
+          profile={profile}
+          id={selfAssessmentId}
+          email={owner?.email}
+          contributors={{
+            reviewers: getProperty(selfAssessment, ['allReviewers'], []),
+            reviewers360: getProperty(selfAssessment, ['reviewers360'], []),
+          }}
+          manager={getProperty(hierarchy, ['manager'], {})}
+        />
+        <ProfilePreviousRTCard
+          previousAssessment={selfAssessment?.previousAssessment}
+        />
+        <div className="prev-exp-utilisation">
+          <ProfilePreviousExperience
+            profile={profile}
+            hierarchy={hierarchy}
+            timeSpentOnCurrentBand={timeSpentOnCurrentBand}
+          />
+          {!flagToHideManagerAssessmentData && (
+            <ProfileUtilisationScore
+              userEmail={hierarchy?.owner?.email}
+              cycleId={hierarchy?.cycle?.id}
+            />
+          )}
+        </div>
+        <ProfileOfManagerAndCoach
+          manager={hierarchy?.manager}
+          coach={hierarchy?.coach}
+          flagToHideManagerAssessmentData={flagToHideManagerAssessmentData}
+        />
+        <div className="profile-btn-margin">
+          <ProfileTimelineButton
+            className={'career-timeline-btn'}
+            title={'Career Timeline'}
+            selfAssessmentId={selfAssessmentId}
+          />
+          <br />
+          <ProfileTimelineButton
+            className={'expectations-margin'}
+            title={'RT Questions'}
+            handleRTClick={handleRTClick}
+          />
+          <br />
+          {!flagToHideManagerAssessmentData && (
+            <ProfileTimelineButton
+              id={owner?.id}
+              className={'expectations-margin'}
+              title={'Manager 1 on 1 Summary'}
+            />
+          )}
+        </div>
+      </div>
+      {setIsDrawerVisible && (
+        <RTQuestionsDrawer
+          setIsDrawerVisible={setIsDrawerVisible}
+          isDrawerVisible={isDrawerVisible}
+          assessmentId={selfAssessmentId}
+        />
+      )}
+    </>
+  );
+};
+
+export default ProfileCardWholeTemplate;
+
+
+
+
+import UserCard from 'hds-ui/components/UserCard';
+import './ProfileCardWithDropdown.scss';
+import ProfileDropdownReportees from '../../molecules/ProfileDropdownReportees/ProfileDropdownReportees';
+import ProfileReviewersAnd360 from '../../molecules/ProfileReviewersAnd360';
+import DetailedProfile from '../../molecules/DetailedProfile/DetailedProfile';
+import { dashboardClient, useQueryHook } from '../../utils/client';
+import {
+  GET_ACE_CERTIFICATIONS,
+  GET_SKILLS,
+  INTERVIEWS_COUNT,
+} from '../../utils/queries';
+import { Popover } from 'hds-ui/components';
+
+interface ProfileCardWithDropdown {
+  flagToHideManagerAssessmentData: boolean;
+  profile: any;
+  id: any;
+  email: string;
+  contributors: {
+    reviewers: Array<any>;
+    reviewers360: Array<any>;
+  };
+  manager: any;
+}
+const ProfileCardWithDropdown: React.FC<ProfileCardWithDropdown> = ({
+  flagToHideManagerAssessmentData,
+  profile,
+  id,
+  email,
+  contributors ,
+  manager,
+}) => {
+  const { name, designation, profilePic } = profile || '';
+  const { track, band } = profile || {};
+  const { data } = useQueryHook(GET_ACE_CERTIFICATIONS, {
+    variables: { email: email, selfAssessmentId: id },
+  });
+  const { data: skillsData } = useQueryHook(GET_SKILLS, {
+    variables: {
+      conditions: {
+        email: email,
+      },
+    },
+    client: dashboardClient,
+  });
+
+  const { data: hireData } = useQueryHook(INTERVIEWS_COUNT, {
+    variables: { email: email, selfAssessmentId: id },
+  });
+  const interviewsCount = hireData?.hireInterviewsCount?.[0]?.interviewCount;
+  const usersCertifiedCertificationList =
+    data?.aceCertifications?.result?.filter((obj: any) => {
+      return obj?.userCertificate;
+    });
+  const userSkills = skillsData?.getUser?.detailedProfile?.userSkills;
+
+  const queryType = !flagToHideManagerAssessmentData ? 'TEAM_LIST' : 'TENANT_REVIEW_LIST';
+
+  return (
+    <div className="profile-user-container" data-testid="detailed-profile">
+      <div className="main-profile-user-card">
+        <Popover
+          placement="rightTop"
+          content={
+            <DetailedProfile
+              name={name}
+              track={track?.name}
+              designation={designation}
+              usersCertifiedCertificationList={usersCertifiedCertificationList}
+              userSkills={userSkills}
+              interviewsCount={interviewsCount}
+            />
+          }>
+          <div>
+            <UserCard
+              profilePic={profilePic}
+              description={`Track - ${track?.name}`}
+              band={band?.name}
+              title={name}
+              subTitle={designation}
+              loading={false}
+              imgSize="lg"
+              imgHoverZoom={false}
+            />
+          </div>
+        </Popover>
+        <ProfileDropdownReportees queryType={queryType} data={queryData.map(() => ({
+          name:
+        }))} />
+
+      </div>
+      {!flagToHideManagerAssessmentData && <ProfileReviewersAnd360 info={contributors} manager={manager} />}
+    </div>
+  );
+};
+
+export default ProfileCardWithDropdown;
+
+
+
+import { MenuProps, UserCard } from 'hds-ui/components';
+import { useQueryHook } from '../../utils/client';
+import exclamation from '../../assets/exclamation.svg';
+import check from '../../assets/check.svg';
+import { Link } from 'react-router-dom';
+import './ProfileDropdownReportees.scss';
+import ProfileDropdownReporteesAtom from '../../atoms/ProfileDropdownReporteesAtom';
+import { APP_URL } from '../../utils/constants';
+import { TEAM_LIST, TENANT_REVIEW_LIST } from '../../utils/queries';
+import { getProperty } from 'hds-ui/utils';
+
+// Helper function to generate dynamic URLs
+const getURL = (currentURL: string, id: string | null, dataType: string) => {
+  switch (dataType) {
+    case 'TENANT_REVIEW_LIST':
+      return currentURL.includes('final')
+        ? `${APP_URL}/reviewer-assessment/${id}`
+        : `${APP_URL}/reviewer-assessment/${id}`;
+    case 'TEAM_LIST':
+      return currentURL.includes('final')
+        ? `${APP_URL}/manager-final-feedback/${id}`
+        : `${APP_URL}/manager-feedback-form/${id}`;
+    default:
+      return '#';
+  }
+};
+
+interface UserType {
+  name: string;
+  profilePic: string;
+  band: string;
+}
+
+interface ProfileDropdownReporteesProps {
+  queryType: any;
+  data: Array<UserType>;
+  link: string;
+  disabled: boolean;
+}
+
+const ProfileDropdownReportees: React.FC<ProfileDropdownReporteesProps> = ({
+  queryType,
+}) => {
+  const { data, error } = useQueryHook(queryType === 'TEAM_LIST' ? TEAM_LIST : TENANT_REVIEW_LIST);
+
+  if (error) {
+    return <></>;
+  }
+
+  console.log("ProfileDropDownReportees", data);
+
+  const currentURL = window.location.href;
+
+  // Dynamically choose data structure based on queryType
+  const TeamData = queryType === 'TEAM_LIST'
+  ? getProperty(data, ['myTeamAssessment', 'result'])
+  : getProperty(data, ['tenantReviewsList', 'result', '3', 'reviews']);
+
+
+  const json = TeamData?.map((data: any, index: number) => ({
+    key: (index + 1).toString(),
+    label: (
+      <Link to={getURL(currentURL, queryType === 'TEAM_LIST'? data?.selfAssessment?.id : data?.id , queryType)}>
+        <div style={{ display: 'flex' }}>
+          {data?.selfAssessment?.managerAssessment?.status === 'FINAL' ? (
+            <img src={check} className="dropdown-status" />
+          ) : (
+            <img src={exclamation} className="dropdown-status" />
+          )}
+          <UserCard
+  profilePic={
+    queryType === 'TEAM_LIST'
+      ? getProperty(data, ['owner', 'profile', 'profilePic'])
+      : getProperty(data, ['selfAssessment', 'hierarchy', 'owner', 'profile', 'profilePic'])
+  }
+  band={
+    queryType === 'TEAM_LIST'
+      ? getProperty(data, ['owner', 'profile', 'band', 'name'])
+      : getProperty(data, ['selfAssessment', 'band', 'name'])
+  }
+  title={
+    queryType === 'TEAM_LIST'
+      ? getProperty(data, ['owner', 'profile', 'name'])
+      : getProperty(data, ['selfAssessment', 'hierarchy', 'owner', 'profile', 'name'])
+  }
+  subTitle={
+    queryType === 'TEAM_LIST'
+      ? getProperty(data, ['owner', 'profile', 'designation'])
+      : getProperty(data, ['selfAssessment', 'hierarchy', 'owner', 'profile', 'designation'])
+  }
+  loading={false}
+  imgSize="md"
+  imgHoverZoom={false}
+/>
+
+        </div>
+      </Link>
+    ),
+    disabled:
+      !data?.selfAssessment?.id ||
+      (currentURL.includes('final') && data?.selfAssessment?.rtDecision?.status !== 'FINAL'),
+  }));
+
+  const style = {
+    width: '260px',
+  };
+
+  const items: MenuProps['items'] = json;
+  return <ProfileDropdownReporteesAtom items={items} style={style} />;
+};
+
+export default ProfileDropdownReportees;
 
 
 
