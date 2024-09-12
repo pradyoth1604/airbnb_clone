@@ -839,6 +839,115 @@ export default ProfileDropdownReportees;
 
 ____________________________________________________________
 
+Need to redux for this query thing and pass to generate the data 
+
+need the redux logic in below component
+
+import './ProfileCardWholeTemplate.scss';
+import ProfileCardWithDropdown from '../../modules/ProfileCardWithDropdown/ProfileCardWithDropdown';
+import ProfilePreviousRTCard from '../../molecules/ProfilePreviousRTCard/ProfilePreviousRTCard';
+import ProfileOfManagerAndCoach from '../../molecules/ProfileOfManagerAndCoach/ProfileOfManagerAndCoach';
+import ProfilePreviousExperience from '../../molecules/ProfilePreviousExperience/ProfilePreviousExperience';
+import ProfileTimelineButton from '../../atoms/ProfileTimelineButton';
+import ProfileUtilisationScore from '../../molecules/ProfileUtilisationScore/ProfileUtilisationScore';
+import RTQuestionsDrawer from '../RTQuestionsDrawer/RTQuestionsDrawer';
+import { useState } from 'react';
+import { getProperty } from '../../utils';
+
+interface ProfileCardWholeTemplateProps {
+  data: any;
+  flagToHideManagerAssessmentData?: boolean;  // Added the flag here
+}
+
+const ProfileCardWholeTemplate: React.FC<ProfileCardWholeTemplateProps> = ({
+  data,
+  flagToHideManagerAssessmentData = false // Default it to false for backward compatibility
+}) => {
+  // Normalize the data structure to handle both `data` and `reviews`
+  const normalizedData = data?.reviews?.[0] || data;  // Handles both cases
+  const { selfAssessment: apiSelfAssessment } = normalizedData || {};
+  const selfAssessment = apiSelfAssessment?.[0] || apiSelfAssessment || {};
+  const { hierarchy, timeSpentOnCurrentBand } = selfAssessment || {};
+  const owner = hierarchy?.owner || {};
+  const profile = owner?.profile || {};
+  const selfAssessmentId = selfAssessment?.id || normalizedData?.id || null;
+
+  const [isDrawerVisible, setIsDrawerVisible] = useState(false);
+
+  const handleRTClick = () => {
+    setIsDrawerVisible(true);
+  };
+
+  return (
+    <>
+      <div className="profile-card-main" data-testid="profile-template">
+        <ProfileCardWithDropdown
+          profile={profile}
+          id={selfAssessment?.id}
+          email={owner?.email}
+          contributors={{
+            reviewers: getProperty(selfAssessment, ['allReviewers'], []),
+            reviewers360: getProperty(selfAssessment, ['reviewers360'], []),
+          }}
+          manager={getProperty(hierarchy, ['manager'], {})}
+        />
+        <ProfilePreviousRTCard
+          previousAssessment={selfAssessment?.previousAssessment}
+        />
+        <div className="prev-exp-utilisation">
+          <ProfilePreviousExperience
+            profile={profile}
+            hierarchy={hierarchy}
+            timeSpentOnCurrentBand={timeSpentOnCurrentBand}
+          />
+          {!flagToHideManagerAssessmentData && (
+            <ProfileUtilisationScore
+              userEmail={hierarchy?.owner?.email}
+              cycleId={hierarchy?.cycle?.id}
+            />
+          )}
+        </div>
+        <ProfileOfManagerAndCoach
+          manager={hierarchy?.manager}
+          coach={hierarchy?.coach}
+          flagToHideManagerAssessmentData={flagToHideManagerAssessmentData} // Pass flag here
+        />
+        <div className="profile-btn-margin">
+          <ProfileTimelineButton
+            className={'career-timeline-btn'}
+            title={'Career Timeline'}
+            selfAssessmentId={selfAssessmentId}
+          />
+          <br />
+          <ProfileTimelineButton
+            className={'expectations-margin'}
+            title={'RT Questions'}
+            handleRTClick={handleRTClick}
+          />
+          <br />
+          {!flagToHideManagerAssessmentData && (
+            <ProfileTimelineButton
+              id={owner?.id}
+              className={'expectations-margin'}
+              title={'Manager 1 on 1 Summary'}
+            />
+          )}
+        </div>
+      </div>
+      {setIsDrawerVisible && (
+        <RTQuestionsDrawer
+          setIsDrawerVisible={setIsDrawerVisible}
+          isDrawerVisible={isDrawerVisible}
+          assessmentId={selfAssessmentId}
+        />
+      )}
+    </>
+  );
+};
+
+export default ProfileCardWholeTemplate;
+
+
 
 import UserCard from 'hds-ui/components/UserCard';
 import './ProfileCardWithDropdown.scss';
